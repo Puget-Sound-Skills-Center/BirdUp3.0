@@ -19,9 +19,10 @@ public class PlayerMovement : MonoBehaviour
     public Transform groundCheckPos;
     public Vector2 groundCheckSize = new Vector2(0.5f, 0.05f);
     public LayerMask groundLayer;
+    bool isGrounded;
 
     [Header("Gravity")]
-    public float baseGravity = 2;
+    public float baseGravity = 2f;
     public float maxFallSpeed = 18f;
     public float fallSpeedMultiplyer = 2f;
 
@@ -30,28 +31,27 @@ public class PlayerMovement : MonoBehaviour
     public Vector2 wallCheckSize = new Vector2(0.5f, 0.05f);
     public LayerMask wallLayer;
 
+    [Header("WallMovement")]
+    public float wallSlideSpeed = 2;
+    bool isWallSliding;
+
+    //wall jumping
+    bool isWallJumping;
+    float wallJumpDirection;
+    float wallJumpTime = 0.5f;
+    float wallJumpTimer;
+    public Vector2 wallJumpPower = new Vector2(5f, 10f);
+
+
+
     // Update is called once per frame
     void Update()
     {
         rb.linearVelocity = new Vector2(horizontalMovement * moveSpeed, rb.linearVelocity.y);
         GroundCheck();
         ProcessGravity();
+        ProcessWallSlide();
         Flip();
-    }
-
-    private void ProcessGravity()
-    {
-        //falling gravity
-        if(rb.linearVelocity.y < 0)
-        {
-            rb.gravityScale = baseGravity * fallSpeedMultiplyer; //fall increasingly faster
-            rb.linearVelocity = new Vector2(rb.linearVelocity.x, Mathf.Max(rb.linearVelocity.y, -maxFallSpeed));
-
-        }
-        else
-        {
-            rb.gravityScale = baseGravity;
-        }
     }
 
     public void Move(InputAction.CallbackContext context)
@@ -76,6 +76,13 @@ public class PlayerMovement : MonoBehaviour
                 jumpsRemaining--;
             }
         }
+
+        //wall jump
+        if(context.performed && wallJumpTimer > 0f)
+        {
+            isWallJumping = true;
+            rb.linearVelocity = new Vector2(wallJumpDirection * wallJumpPower.x, wallJumpPower.y); //jump away from wall
+        }
     }
 
     private void GroundCheck()
@@ -83,6 +90,59 @@ public class PlayerMovement : MonoBehaviour
         if(Physics2D.OverlapBox(groundCheckPos.position, groundCheckSize, 0, groundLayer))
         {
             jumpsRemaining = maxJumps;
+            isGrounded = true;
+        }
+        else
+        {
+            isGrounded = false;
+        }
+    }
+
+    private bool WallCheck()
+    {
+        return Physics2D.OverlapBox(wallCheckPos.position, wallCheckSize, 0, wallLayer);
+    }
+
+    private void ProcessGravity()
+    {
+        //falling gravity
+        if (rb.linearVelocity.y < 0)
+        {
+            rb.gravityScale = baseGravity * fallSpeedMultiplyer; //fall increasingly faster
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, Mathf.Max(rb.linearVelocity.y, -maxFallSpeed));
+
+        }
+        else
+        {
+            rb.gravityScale = baseGravity;
+        }
+    }
+
+    private void ProcessWallSlide()
+    {
+        //Not grounded & On a wall & movement != 0
+        if (!isGrounded & WallCheck() & horizontalMovement != 0)
+        {
+            isWallSliding = true;
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, Mathf.Max(rb.linearVelocity.y, -wallSlideSpeed)); //Caps fall rate
+        }
+        else
+        {
+            isWallSliding = false;
+        }
+    }
+
+    private void ProcessWallJump()
+    {
+        if (isWallSliding)
+        {
+            isWallJumping = false;
+            wallJumpDirection = -transform.localScale.x;
+            wallJumpTimer = wallJumpTime;
+        }
+        else if (wallJumpTimer > 0f)
+        {
+            wallJumpTimer -= Time.deltaTime;
         }
     }
 
