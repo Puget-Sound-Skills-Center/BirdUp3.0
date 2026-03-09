@@ -47,11 +47,16 @@ public class PlayerMovement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        rb.linearVelocity = new Vector2(horizontalMovement * moveSpeed, rb.linearVelocity.y);
         GroundCheck();
         ProcessGravity();
         ProcessWallSlide();
-        Flip();
+        ProcessWallJump();
+
+        if (!isWallJumping)
+        {
+            rb.linearVelocity = new Vector2(horizontalMovement * moveSpeed, rb.linearVelocity.y);
+            Flip();
+        }
     }
 
     public void Move(InputAction.CallbackContext context)
@@ -82,6 +87,18 @@ public class PlayerMovement : MonoBehaviour
         {
             isWallJumping = true;
             rb.linearVelocity = new Vector2(wallJumpDirection * wallJumpPower.x, wallJumpPower.y); //jump away from wall
+            wallJumpTimer = 0;
+
+            //Force flip
+            if(transform.localScale.x != wallJumpDirection)
+            {
+                isFacingRight = !isFacingRight;
+                Vector3 scale = transform.localScale;
+                scale.y *= -1f;
+                transform.localScale = -scale;
+            }
+
+            Invoke(nameof(CancelWallJump), wallJumpTime + 0.1f); //Wall Jump = 0.5f -- Jump again = 0.6f
         }
     }
 
@@ -139,11 +156,18 @@ public class PlayerMovement : MonoBehaviour
             isWallJumping = false;
             wallJumpDirection = -transform.localScale.x;
             wallJumpTimer = wallJumpTime;
+
+            CancelInvoke(nameof(CancelWallJump));
         }
         else if (wallJumpTimer > 0f)
         {
             wallJumpTimer -= Time.deltaTime;
         }
+    }
+
+    private void CancelWallJump()
+    {
+        isWallJumping = false;
     }
 
     private void Flip()
